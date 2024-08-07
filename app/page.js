@@ -1,85 +1,211 @@
-'use client'
-import React, {useState, useEffect} from 'react'; 
-import Image from "next/image";
-import { collection, addDoc } from "firebase/firestore"; 
-
+'use client';
+import React, { useState, useEffect } from 'react';
+import {
+  collection,
+  addDoc,
+  getDoc,
+  querySnapshot,
+  query,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from 'firebase/firestore';
+import { db } from './firebase';
 
 export default function Home() {
-  const [items, setItems] = useState([ 
-    {name: 'Vegetables', price: 5.00},
-    { name: 'Fruits', price: 5.00},
-    {name: 'Carbohydrates', price: 4.00},
-    {name: 'Candy', price: 10.00},
-  ]);
-  const [newItem, setNewItem] = useState({name: '', price: ''})
-  const [total, setTotal] = useState(0)
+  const [items, setItems] = useState([]);
+  const [newItem, setNewItem] = useState({ name: '', price: '' });
+  const [total, setTotal] = useState(0);
+  const [recipes, setRecipes] = useState([]);
 
-  // add item to database 
-  const addItem = async (e) => { 
-    e.preventDefault()
-    if(newItem.name !== '' && newItem.price !== '') {
-      //setItems([...items, newItem])
+  // Add item to database
+  const addItem = async (e) => {
+    e.preventDefault();
+    if (newItem.name !== '' && newItem.price !== '') {
       await addDoc(collection(db, 'items'), {
-        name: newItem.name.trim(), 
-        price: newItem.price, 
-    }); 
+        name: newItem.name.trim(),
+        price: newItem.price,
+      });
+      setNewItem({ name: '', price: '' });
     }
-  }
+  };
 
-  // read items from database 
+  // Read items from database
+  useEffect(() => {
+    const q = query(collection(db, 'items'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      let itemsArr = [];
 
-  //delete items from database 
+      querySnapshot.forEach((doc) => {
+        itemsArr.push({ ...doc.data(), id: doc.id });
+      });
+      setItems(itemsArr);
 
+      // Read total from itemsArr
+      const calculateTotal = () => {
+        const totalPrice = itemsArr.reduce(
+          (sum, item) => sum + parseFloat(item.price),
+          0
+        );
+        setTotal(totalPrice);
+      };
+      calculateTotal();
+      return () => unsubscribe();
+    });
+  }, []);
+
+  // Delete items from database
+  const deleteItem = async (id) => {
+    await deleteDoc(doc(db, 'items', id));
+  };
+
+  // Fetch recipe suggestions
+  const fetchRecipes = async () => {
+    const ingredients = items.map((item) => item.name).join(',');
+    const response = await fetch(
+      `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredients}&apiKey= 131468b95d564acbab0399ffaaa44c0f`
+    );
+    const data = await response.json();
+    setRecipes(data);
+  };
+
+  useEffect(() => {
+    if (items.length > 0) {
+      fetchRecipes();
+    }
+  }, [items]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between sm:p-24 p-4">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <h1 className="text-4xl p-4 text-center">Pantry Expense Tracker</h1>
-        <div className="bg-slate-800 p-5 rounded-lg">
-          <form className="grid grid-cols-6 items-center text-black">
+    <main className='flex min-h-screen flex-col items-center justify-between sm:p-24 p-4'>
+      <div className='z-10 w-full max-w-5xl items-center justify-between font-mono text-sm '>
+        <h1 className='text-4xl p-4 text-center'>Pantry Expense Tracker</h1>
+        <div className='bg-slate-800 p-4 rounded-lg'>
+          <form className='grid grid-cols-6 items-center text-black'>
             <input
-            value= {newItem.name}
-            onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-              className="col-span-3 p-3 border"
-              type="text"
-              placeholder="Enter Item:"
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              className='col-span-3 p-3 border'
+              type='text'
+              placeholder='Enter Item'
             />
             <input
-            value= {newItem.price}
-            onChange={(e) => setNewItem({...newItem, price: e.target.value})}
-              className="col-span-2 p-3 border mx-3"
-              type="number"
-              placeholder="Enter price:"
+              value={newItem.price}
+              onChange={(e) =>
+                setNewItem({ ...newItem, price: e.target.value })
+              }
+              className='col-span-2 p-3 border mx-3'
+              type='number'
+              placeholder='Enter $'
             />
             <button
-            onClick= {addItem}
-              className="text-white bg-slate-950 hover:bg-slate-900 p-3 text-xl col-span-1"
-              type="submit"
+              onClick={addItem}
+              className='text-white bg-slate-950 hover:bg-slate-900 p-3 text-xl'
+              type='submit'
             >
-              Add
+              +
             </button>
           </form>
-          <ul> 
-            {items.map} 
-            <li key={id} className= 'my-4w full flex justify-between '> 
-              <div className= 'p-4 w-full flex justify-between'> 
-                <span className= 'capitalize'>{item.name}</span>
-                <span>${item.price}</span>
-              </div>
-              <button className = 'ml-8 p-4 border-l-2 border-slate-900 hover: bg-slate-900 w-16'>
-                X
-              </button>
-            </li>
-            </ul> 
-            {items.length < 1 ? (''): ( 
-              <div className= 'flex justify-between p-3'>
-                <span>Total</span> 
-                <span> ${total}</span>
-              </div> 
+          <ul>
+            {items.map((item, id) => (
+              <li
+                key={id}
+                className='my-4 w-full flex justify-between bg-slate-950'
+              >
+                <div className='p-4 w-full flex justify-between'>
+                  <span className='capitalize'>{item.name}</span>
+                  <span>${item.price}</span>
+                </div>
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className='ml-8 p-4 border-l-2 border-slate-900 hover:bg-slate-900 w-16'
+                >
+                  X
+                </button>
+              </li>
+            ))}
+          </ul>
+          {items.length < 1 ? (
+            ''
+          ) : (
+            <div className='flex justify-between p-3'>
+              <span>Total</span>
+              <span>${total}</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Pantry Tracker Section */}
+        <h2 className='text-4xl p-4 text-center'>Pantry Tracker</h2>
+        <div className='bg-slate-800 p-4 rounded-lg'>
+          {/* Similar form for pantry items */}
+          <form className='grid grid-cols-6 items-center text-black'>
+            <input
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              className='col-span-3 p-3 border'
+              type='text'
+              placeholder='Enter Item'
+            />
+            <input
+              value={newItem.price}
+              onChange={(e) =>
+                setNewItem({ ...newItem, price: e.target.value })
+              }
+              className='col-span-2 p-3 border mx-3'
+              type='number'
+              placeholder='Enter $'
+            />
+            <button
+              onClick={addItem}
+              className='text-white bg-slate-950 hover:bg-slate-900 p-3 text-xl'
+              type='submit'
+            >
+              +
+            </button>
+          </form>
+          <ul>
+            {items.map((item, id) => (
+              <li
+                key={id}
+                className='my-4 w-full flex justify-between bg-slate-950'
+              >
+                <div className='p-4 w-full flex justify-between'>
+                  <span className='capitalize'>{item.name}</span>
+                  <span>${item.price}</span>
+                </div>
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className='ml-8 p-4 border-l-2 border-slate-900 hover:bg-slate-900 w-16'
+                >
+                  X
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-            )}
+        {/* Recipe Suggestion Section */}
+        <h2 className='text-4xl p-4 text-center'>Recipe Suggestions</h2>
+        <div className='bg-slate-800 p-4 rounded-lg'>
+          {recipes.length > 0 ? (
+            <ul>
+              {recipes.map((recipe, id) => (
+                <li key={id} className='my-4 w-full flex justify-between bg-slate-950'>
+                  <div className='p-4 w-full flex justify-between'>
+                    <span className='capitalize'>{recipe.title}</span>
+                    <span>
+                      <a href={recipe.sourceUrl} target='_blank' rel='noopener noreferrer' className='text-blue-500'>View Recipe</a>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No recipe suggestions available.</p>
+          )}
         </div>
       </div>
     </main>
   );
 }
+
