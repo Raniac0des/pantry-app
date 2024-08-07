@@ -3,15 +3,13 @@ import React, {useState, useEffect} from 'react';
 import Image from "next/image";
 
 export default function Home() {
-  const[ items, setItems] = useState ([ 
-    {name: 'Vegetables', amount: 5.00},
-    { name: 'Fruits', amount: 5.00 },
-    {name: 'Carbohydrates', amount: 4.00},
-    {name: 'candy', amount: 10.00},
-
-    const [total, setTotal] = useState(0)
-
-    ]); 
+  const [items, setItems] = useState([ 
+    {name: 'Vegetables', price: 5.00},
+    { name: 'Fruits', price: 5.00},
+    {name: 'Carbohydrates', price: 4.00},
+    {name: 'Candy', price: 10.00},
+  ]);
+  const [total, setTotal] = useState(0)
 
 
   return (
@@ -37,15 +35,26 @@ export default function Home() {
               Add
             </button>
           </form>
+          <ul> 
             {items.map((item, id)=> (
             <li key={id} className= 'my-4w full flex justify-between '> 
               <div className= 'p-4 w-full flex justify-between'> 
                 <span className= 'capitalize'>{item.name}</span>
                 <span>${item.price}</span>
               </div>
-              <button className = 'ml-8 p-4 border-l-2 border-slate-900 hover: bg-slate-900 w-16>X</button>
+              <button className = 'ml-8 p-4 border-l-2 border-slate-900 hover: bg-slate-900 w-16'>
+                X
+              </button>
             </li>
             ))} 
+            </ul> 
+            {items.length < 1 ? (''): ( 
+              <div className= 'flex justify-between p-3'>
+                <span>Total</span> 
+                <span> ${total}</span>
+              </div> 
+
+            )}
         </div>
       </div>
     </main>
